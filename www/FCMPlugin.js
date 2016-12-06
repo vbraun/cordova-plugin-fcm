@@ -1,5 +1,4 @@
 
-cordova.define("cordova-plugin-fcm.FCMPlugin", function(require, exports, module) {
 var exec = require('cordova/exec');
 
 exports.subscribeToTopic = function(success, error) {
@@ -42,5 +41,5 @@ exports.setBadgeNumber = function(number, success, error){
 }
 
 
-});
+
 
