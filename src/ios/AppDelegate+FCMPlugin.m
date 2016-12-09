@@ -152,7 +152,6 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
     NSLog(@"app become active");
-    [FCMPlugin.fcmPlugin appEnterForeground];
     [self connectToFcm];
 }
 
@@ -161,8 +160,6 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 {
     NSLog(@"app entered background");
     [[FIRMessaging messaging] disconnect];
-    [FCMPlugin.fcmPlugin appEnterBackground];
-    NSLog(@"Disconnected from FCM");
 }
 // [END disconnect_from_fcm]
 

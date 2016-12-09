@@ -16,25 +16,7 @@ static BOOL notificatorReceptorReady = NO;
 static BOOL appInForeground = YES;
 
 static NSString *notificationCallback = @"FCMPlugin.onNotificationReceived";
-static FCMPlugin *fcmPluginInstance;
 
-+ (FCMPlugin *) fcmPlugin {
-    
-    return fcmPluginInstance;
-}
-
-- (void) ready:(CDVInvokedUrlCommand *)command
-{
-    NSLog(@"Cordova view ready");
-    fcmPluginInstance = self;
-    [self.commandDelegate runInBackground:^{
-        
-        CDVPluginResult* pluginResult = nil;
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
-    
-}
 
 - (void)setBadgeNumber:(CDVInvokedUrlCommand *)command {
     int number    = [[command.arguments objectAtIndex:0] intValue];
@@ -118,20 +100,5 @@ static FCMPlugin *fcmPluginInstance;
     }
 }
 
--(void) appEnterBackground
-{
-    NSLog(@"Set state background");
-    appInForeground = NO;
-}
-
--(void) appEnterForeground
-{
-    NSLog(@"Set state foreground");
-    NSData* lastPush = [AppDelegate getLastPush];
-    if (lastPush != nil) {
-        [FCMPlugin.fcmPlugin notifyOfMessage:lastPush];
-    }
-    appInForeground = YES;
-}
 
 @end
