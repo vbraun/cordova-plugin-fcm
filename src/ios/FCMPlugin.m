@@ -47,6 +47,11 @@ static FCMPlugin *fcmPluginInstance;
     }];
 }
 
+- (void)getBadgeNumber:(CDVInvokedUrlCommand *)command {
+    NSInteger number = [UIApplication sharedApplication].applicationIconBadgeNumber;
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:number];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
 
 // GET TOKEN //
 - (void) getToken:(CDVInvokedUrlCommand *)command 
