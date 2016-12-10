@@ -8,9 +8,10 @@
 - (void)getToken:(CDVInvokedUrlCommand*)command;
 - (void)subscribeToTopic:(CDVInvokedUrlCommand*)command;
 - (void)unsubscribeFromTopic:(CDVInvokedUrlCommand*)command;
-- (void)registerNotification:(CDVInvokedUrlCommand*)command;
-- (void)notifyOfMessage:(NSData*) payload;
 - (void)setBadgeNumber:(CDVInvokedUrlCommand*)command;
 - (void)getBadgeNumber:(CDVInvokedUrlCommand*)command;
+- (void)registerNotification:(CDVInvokedUrlCommand*)command;
+- (void)deliverNotification:(NSDictionary *)notificationDict withTap:(BOOL)wasTapped;
+- (void)deliverNotification:(NSString *)notificationJson;
 
 @end

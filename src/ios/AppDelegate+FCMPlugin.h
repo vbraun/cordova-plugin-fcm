@@ -11,7 +11,4 @@
 #import <Cordova/CDVViewController.h>
 
 @interface AppDelegate (FCMPlugin)
-
-+ (NSData*)getLastPush;
-
 @end

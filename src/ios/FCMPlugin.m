@@ -12,9 +12,8 @@
 
 @implementation FCMPlugin
 
-static BOOL notificatorReceptorReady = NO;
-static BOOL appInForeground = YES;
-
+static BOOL notificationCallbackRegistered = NO;
+static NSString *pendingNotificationJson = nil;
 static NSString *notificationCallback = @"FCMPlugin.onNotificationReceived";
 
 
@@ -74,31 +73,55 @@ static NSString *notificationCallback = @"FCMPlugin.onNotificationReceived";
 
 - (void) registerNotification:(CDVInvokedUrlCommand *)command
 {
-    NSLog(@"view registered for notifications");
-    
-    notificatorReceptorReady = YES;
-    NSData* lastPush = [AppDelegate getLastPush];
-    if (lastPush != nil) {
-        [FCMPlugin.fcmPlugin notifyOfMessage:lastPush];
+    NSLog(@"Registered for notifications");
+    BOOL havePendingNotification = (!notificationCallbackRegistered && pendingNotificationJson);
+    // deliverNotification will only actually deliver if notificationCallbackRegistered is true
+    notificationCallbackRegistered = YES;
+    if (havePendingNotification) {
+        NSLog(@"Delivering pending notification (app start because notification was tapped)");
+        [self deliverNotification:pendingNotificationJson];
+        pendingNotificationJson = nil;
     }
-    
     CDVPluginResult* pluginResult = nil;
     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
--(void) notifyOfMessage:(NSData *)payload
+
+- (void)deliverNotification:(NSDictionary *)notificationDict withTap:(BOOL)wasTapped
 {
-    NSString *JSONString = [[NSString alloc] initWithBytes:[payload bytes] length:[payload length] encoding:NSUTF8StringEncoding];
-    NSString * notifyJS = [NSString stringWithFormat:@"%@(%@);", notificationCallback, JSONString];
-    NSLog(@"stringByEvaluatingJavaScriptFromString %@", notifyJS);
-    
-    if ([self.webView respondsToSelector:@selector(stringByEvaluatingJavaScriptFromString:)]) {
-        [(UIWebView *)self.webView stringByEvaluatingJavaScriptFromString:notifyJS];
-    } else {
-        [self.webViewEngine evaluateJavaScript:notifyJS completionHandler:nil];
+    NSDictionary *dictMutable = [notificationDict mutableCopy];
+    [dictMutable setValue:@(wasTapped) forKey:@"wasTapped"];
+    NSError *error;
+    NSData *data = [NSJSONSerialization dataWithJSONObject:dictMutable
+                                                   options:0
+                                                     error:&error];
+    if (error) {
+        NSLog(@"Failed to serialize notification");
+        return;
     }
+    NSString *json = [[NSString alloc] initWithBytes:[data bytes]
+                                              length:[data length]
+                                            encoding:NSUTF8StringEncoding];
+    [self deliverNotification:json];
 }
 
+
+- (void)deliverNotification:(NSString *)notificationJson
+{
+    if (!notificationCallbackRegistered) {
+        // We probably started because the notification was tapped, but its too early to deliver to JS
+        pendingNotificationJson = notificationJson;
+        return;
+    }
+    NSString *cmd = [NSString stringWithFormat:@"%@(%@);", notificationCallback, notificationJson];
+    NSLog(@"stringByEvaluatingJavaScriptFromString %@", cmd);
+    
+    if ([self.webView respondsToSelector:@selector(stringByEvaluatingJavaScriptFromString:)]) {
+        [(UIWebView *)self.webView stringByEvaluatingJavaScriptFromString:cmd];
+    } else {
+        [self.webViewEngine evaluateJavaScript:cmd completionHandler:nil];
+    }  
+}
 
 @end
