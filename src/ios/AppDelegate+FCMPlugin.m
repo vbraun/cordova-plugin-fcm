@@ -35,7 +35,7 @@
         UIRemoteNotificationType allNotificationTypes =
             (UIRemoteNotificationTypeSound | UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeBadge);
         [application registerForRemoteNotificationTypes:allNotificationTypes];
-    } else {
+    } else if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_9_x_Max) {
         // iOS 8 or later
         UIUserNotificationType allNotificationTypes =
             (UIUserNotificationTypeSound | UIUserNotificationTypeAlert | UIUserNotificationTypeBadge);
@@ -43,6 +43,18 @@
         [UIUserNotificationSettings settingsForTypes:allNotificationTypes categories:nil];
         [[UIApplication sharedApplication] registerUserNotificationSettings:settings];
         [[UIApplication sharedApplication] registerForRemoteNotifications];
+    } else {
+        // iOS 10 display notification
+        [UNUserNotificationCenter currentNotificationCenter].delegate = self;
+        UNAuthorizationOptions authOptions =
+            UNAuthorizationOptionAlert | UNAuthorizationOptionSound | UNAuthorizationOptionBadge;
+        [[UNUserNotificationCenter currentNotificationCenter] 
+            requestAuthorizationWithOptions:authOptions 
+            completionHandler:^(BOOL granted, NSError * _Nullable error) {
+                [[UIApplication sharedApplication] registerForRemoteNotifications];
+                NSLog(@"FCMPlugin request auth %d, error: %@", granted, error); 
+            }
+        ];
     }
 
     // [START configure_firebase]

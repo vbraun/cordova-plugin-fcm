@@ -8,6 +8,7 @@
 
 #import "AppDelegate.h"
 #import <UIKit/UIKit.h>
+#import <UserNotifications/UserNotifications.h>
 #import <Cordova/CDVViewController.h>
 
 @interface AppDelegate (FCMPlugin)
