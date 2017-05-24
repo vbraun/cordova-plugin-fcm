@@ -12,7 +12,7 @@
 
 #import "Firebase.h"
 
-@implementation AppDelegate (MCPlugin)
+@implementation AppDelegate (FCMPlugin)
 
 
 //Method swizzling
@@ -123,10 +123,19 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 }
 // [END connect_to_fcm]
 
+
 - (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken{
     // Figure out what the actual token type is from the provisioning profile
+    NSLog(@"didRegisterForRemoteNotifications deviceToken %@", deviceToken);
+    // [FIRMessaging messaging].APNSToken = deviceToken;
     [[FIRInstanceID instanceID] setAPNSToken:deviceToken type:FIRInstanceIDAPNSTokenTypeUnknown];
 }
+
+
+- (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
+    NSLog(@"didFailToRegisterForRemoteNotifications error %@", error);   
+}
+
 
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {

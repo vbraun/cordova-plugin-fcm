@@ -37,9 +37,9 @@ static NSString *notificationCallback = @"FCMPlugin.onNotificationReceived";
 // GET TOKEN //
 - (void) getToken:(CDVInvokedUrlCommand *)command 
 {
-    NSLog(@"get Token");
     [self.commandDelegate runInBackground:^{
         NSString* token = [[FIRInstanceID instanceID] token];
+        NSLog(@"getToken: %@", token);
         CDVPluginResult* pluginResult = nil;
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:token];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
