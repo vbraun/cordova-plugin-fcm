@@ -5,6 +5,7 @@
 
 #import <Cordova/CDV.h>
 #import "FCMPlugin.h"
+#import "FCMQueue.h"
 #import "Firebase.h"
 
 @interface FCMPlugin () {}
@@ -12,34 +13,34 @@
 
 @implementation FCMPlugin
 
-static BOOL notificationCallbackRegistered = NO;
-static NSString *pendingNotificationJson = nil;
 static NSString *notificationCallback = @"FCMPlugin.onNotificationReceived";
+static NSString *tokenRefreshCallback = @"FCMPlugin.onTokenRefreshReceived";
+static FCMPlugin *fcmPluginInstance;
 
-
-- (void)setBadgeNumber:(CDVInvokedUrlCommand *)command {
-    int number    = [[command.arguments objectAtIndex:0] intValue];
++ (FCMPlugin *) fcmPlugin {
     
-    [self.commandDelegate runInBackground:^{
-        [[UIApplication sharedApplication] setApplicationIconBadgeNumber:number];
-        
-        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
+    return fcmPluginInstance;
 }
 
-- (void)getBadgeNumber:(CDVInvokedUrlCommand *)command {
-    NSInteger number = [UIApplication sharedApplication].applicationIconBadgeNumber;
-    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:number];
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+- (void) ready:(CDVInvokedUrlCommand *)command
+{
+    NSLog(@"Cordova view ready");
+    fcmPluginInstance = self;
+    [self.commandDelegate runInBackground:^{
+        
+        CDVPluginResult* pluginResult = nil;
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
+    
 }
 
 // GET TOKEN //
 - (void) getToken:(CDVInvokedUrlCommand *)command 
 {
+    NSLog(@"get Token");
     [self.commandDelegate runInBackground:^{
-        NSString* token = [[FIRInstanceID instanceID] token];
-        NSLog(@"getToken: %@", token);
+        NSString* token = [FIRMessaging messaging].FCMToken;
         CDVPluginResult* pluginResult = nil;
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:token];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
@@ -52,7 +53,7 @@ static NSString *notificationCallback = @"FCMPlugin.onNotificationReceived";
     NSString* topic = [command.arguments objectAtIndex:0];
     NSLog(@"subscribe To Topic %@", topic);
     [self.commandDelegate runInBackground:^{
-        if(topic != nil)[[FIRMessaging messaging] subscribeToTopic:[NSString stringWithFormat:@"/topics/%@", topic]];
+        if(topic != nil)[[FIRMessaging messaging] subscribeToTopic:topic];
         CDVPluginResult* pluginResult = nil;
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:topic];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
@@ -64,64 +65,50 @@ static NSString *notificationCallback = @"FCMPlugin.onNotificationReceived";
     NSString* topic = [command.arguments objectAtIndex:0];
     NSLog(@"unsubscribe From Topic %@", topic);
     [self.commandDelegate runInBackground:^{
-        if(topic != nil)[[FIRMessaging messaging] unsubscribeFromTopic:[NSString stringWithFormat:@"/topics/%@", topic]];
+        if(topic != nil)[[FIRMessaging messaging] unsubscribeFromTopic:topic];
         CDVPluginResult* pluginResult = nil;
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:topic];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }];
 }
 
-- (void) registerNotification:(CDVInvokedUrlCommand *)command
+//This is not called when a notification is called, it is called when the js subscribes to the onNotification callback
+- (void) onNotification:(CDVInvokedUrlCommand *)command
 {
-    NSLog(@"Registered for notifications");
-    BOOL havePendingNotification = (!notificationCallbackRegistered && pendingNotificationJson);
-    // deliverNotification will only actually deliver if notificationCallbackRegistered is true
-    notificationCallbackRegistered = YES;
-    if (havePendingNotification) {
-        NSLog(@"Delivering pending notification (app start because notification was tapped)");
-        [self deliverNotification:pendingNotificationJson];
-        pendingNotificationJson = nil;
-    }
+    NSLog(@"onNotification:command");
+    
+    //Tell our queue that we have registered the notification handler...
+    [[FCMQueue sharedFCMQueue] setNotificationCallbackRegistered:YES];
+    
     CDVPluginResult* pluginResult = nil;
     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
-
-- (void)deliverNotification:(NSDictionary *)notificationDict withTap:(BOOL)wasTapped
+-(void) notifyOfMessage:(NSData *)payload
 {
-    NSDictionary *dictMutable = [notificationDict mutableCopy];
-    [dictMutable setValue:@(wasTapped) forKey:@"wasTapped"];
-    NSError *error;
-    NSData *data = [NSJSONSerialization dataWithJSONObject:dictMutable
-                                                   options:0
-                                                     error:&error];
-    if (error) {
-        NSLog(@"Failed to serialize notification");
-        return;
-    }
-    NSString *json = [[NSString alloc] initWithBytes:[data bytes]
-                                              length:[data length]
-                                            encoding:NSUTF8StringEncoding];
-    [self deliverNotification:json];
-}
-
-
-- (void)deliverNotification:(NSString *)notificationJson
-{
-    if (!notificationCallbackRegistered) {
-        // We probably started because the notification was tapped, but its too early to deliver to JS
-        pendingNotificationJson = notificationJson;
-        return;
-    }
-    NSString *cmd = [NSString stringWithFormat:@"%@(%@);", notificationCallback, notificationJson];
-    NSLog(@"stringByEvaluatingJavaScriptFromString %@", cmd);
+    NSLog(@"notifyOfMessage: => executing javascript callback");
+    NSString *JSONString = [[NSString alloc] initWithBytes:[payload bytes] length:[payload length] encoding:NSUTF8StringEncoding];
+    NSString * notifyJS = [NSString stringWithFormat:@"%@(%@);", notificationCallback, JSONString];
+    NSLog(@"stringByEvaluatingJavaScriptFromString %@", notifyJS);
     
     if ([self.webView respondsToSelector:@selector(stringByEvaluatingJavaScriptFromString:)]) {
-        [(UIWebView *)self.webView stringByEvaluatingJavaScriptFromString:cmd];
+        [(UIWebView *)self.webView stringByEvaluatingJavaScriptFromString:notifyJS];
     } else {
-        [self.webViewEngine evaluateJavaScript:cmd completionHandler:nil];
-    }  
+        [self.webViewEngine evaluateJavaScript:notifyJS completionHandler:nil];
+    }
+}
+
+-(void) notifyOfTokenRefresh:(NSString *)token
+{
+    NSString * notifyJS = [NSString stringWithFormat:@"%@('%@');", tokenRefreshCallback, token];
+    NSLog(@"stringByEvaluatingJavaScriptFromString %@", notifyJS);
+    
+    if ([self.webView respondsToSelector:@selector(stringByEvaluatingJavaScriptFromString:)]) {
+        [(UIWebView *)self.webView stringByEvaluatingJavaScriptFromString:notifyJS];
+    } else {
+        [self.webViewEngine evaluateJavaScript:notifyJS completionHandler:nil];
+    }
 }
 
 @end

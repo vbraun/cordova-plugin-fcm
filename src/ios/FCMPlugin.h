@@ -3,15 +3,18 @@
 
 @interface FCMPlugin : CDVPlugin
 {
+    //NSString *notificationCallBack;
 }
 
++ (FCMPlugin *) fcmPlugin;
+- (void)ready:(CDVInvokedUrlCommand*)command;
 - (void)getToken:(CDVInvokedUrlCommand*)command;
 - (void)subscribeToTopic:(CDVInvokedUrlCommand*)command;
 - (void)unsubscribeFromTopic:(CDVInvokedUrlCommand*)command;
-- (void)setBadgeNumber:(CDVInvokedUrlCommand*)command;
-- (void)getBadgeNumber:(CDVInvokedUrlCommand*)command;
-- (void)registerNotification:(CDVInvokedUrlCommand*)command;
-- (void)deliverNotification:(NSDictionary *)notificationDict withTap:(BOOL)wasTapped;
-- (void)deliverNotification:(NSString *)notificationJson;
+- (void)onNotification:(CDVInvokedUrlCommand*)command;
+- (void)notifyOfMessage:(NSData*) payload;
+- (void)notifyOfTokenRefresh:(NSString*) token;
+
+//#define AppDelegateSingleton ((AppDelegate *)[[UIApplication sharedApplication] delegate])
 
 @end

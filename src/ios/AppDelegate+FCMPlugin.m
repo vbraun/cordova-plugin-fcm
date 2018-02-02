@@ -7,13 +7,20 @@
 //
 #import "AppDelegate+FCMPlugin.h"
 #import "FCMPlugin.h"
+#import "FCMQueue.h"
 #import <objc/runtime.h>
 #import <Foundation/Foundation.h>
 
-#import "Firebase.h"
+// Implement UNUserNotificationCenterDelegate to receive display notification via APNS for devices
+// running iOS 10 and above. Implement FIRMessagingDelegate to receive data message via FCM for
+// devices running iOS 10 and above.
+
 
 @implementation AppDelegate (FCMPlugin)
 
+//////////////////////////////////////////////////////
+///////////////////INITIALIZATION/////////////////////
+//////////////////////////////////////////////////////
 
 //Method swizzling
 + (void)load
@@ -24,132 +31,149 @@
 }
 
 - (BOOL)application:(UIApplication *)application customDidFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-
     [self application:application customDidFinishLaunchingWithOptions:launchOptions];
-
+    
     NSLog(@"DidFinishLaunchingWithOptions");
-    // Register for remote notifications
-
-    // iOS 7.1 or earlier
-    if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_7_1) {
-        UIRemoteNotificationType allNotificationTypes =
-            (UIRemoteNotificationTypeSound | UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeBadge);
-        [application registerForRemoteNotificationTypes:allNotificationTypes];
-    } else if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_9_x_Max) {
-        // iOS 8 or later
+    
+    [FIRApp configure];
+    
+    if (floor(NSFoundationVersionNumber) <= NSFoundationVersionNumber_iOS_9_x_Max) {
         UIUserNotificationType allNotificationTypes =
-            (UIUserNotificationTypeSound | UIUserNotificationTypeAlert | UIUserNotificationTypeBadge);
+        (UIUserNotificationTypeSound | UIUserNotificationTypeAlert | UIUserNotificationTypeBadge);
         UIUserNotificationSettings *settings =
         [UIUserNotificationSettings settingsForTypes:allNotificationTypes categories:nil];
         [[UIApplication sharedApplication] registerUserNotificationSettings:settings];
-        [[UIApplication sharedApplication] registerForRemoteNotifications];
     } else {
-        // iOS 10 display notification
-        [UNUserNotificationCenter currentNotificationCenter].delegate = self;
+        // iOS 10 or later
+#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
         UNAuthorizationOptions authOptions =
-            UNAuthorizationOptionAlert | UNAuthorizationOptionSound | UNAuthorizationOptionBadge;
-        [[UNUserNotificationCenter currentNotificationCenter] 
-            requestAuthorizationWithOptions:authOptions 
-            completionHandler:^(BOOL granted, NSError * _Nullable error) {
-                [[UIApplication sharedApplication] registerForRemoteNotifications];
-                NSLog(@"FCMPlugin request auth %d, error: %@", granted, error); 
-            }
-        ];
+        UNAuthorizationOptionAlert
+        | UNAuthorizationOptionSound
+        | UNAuthorizationOptionBadge;
+        [[UNUserNotificationCenter currentNotificationCenter] requestAuthorizationWithOptions:authOptions completionHandler:^(BOOL granted, NSError * _Nullable error) {
+        }];
+        
+        // For iOS 10 display notification (sent via APNS)
+        [UNUserNotificationCenter currentNotificationCenter].delegate = self;
+#endif
     }
+    
+    [FIRMessaging messaging].delegate = self;
+    [[UIApplication sharedApplication] registerForRemoteNotifications];
+    [FIRMessaging messaging].shouldEstablishDirectChannel = YES;
+    
 
-    // [START configure_firebase]
-    [FIRApp configure];
-    // [END configure_firebase]
-    // Add observer for InstanceID token refresh callback.
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(tokenRefreshNotification:)
-                                                 name:kFIRInstanceIDTokenRefreshNotification object:nil];
+    
     return YES;
 }
 
-// [START receive_message]
-- (void)application:(UIApplication *)application
-didReceiveRemoteNotification:(NSDictionary *)userInfo {
-    NSLog(@"didReceiveRemoteNotification %@", userInfo);
-    // If we are currently active, then we must have received the
-    // notification while active. If we are not active, then we are in
-    // the process of starting up because a user tapped on a
-    // notification.
-    BOOL wasTapped = (application.applicationState != UIApplicationStateActive);
-    FCMPlugin* fcmPlugin = [self.viewController getCommandInstance:@"FCMPlugin"];
-    [fcmPlugin deliverNotification:userInfo withTap:wasTapped];
-}
-// [END receive_message]
+//////////////////////////////////////////////////////
+/////////////////////////IOS 9////////////////////////
+//////////////////////////////////////////////////////
 
-// [START receive_message]
-- (void)application:(UIApplication *)application
-didReceiveRemoteNotification:(NSDictionary *)userInfo
-fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
+- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler {
+    NSLog(@"application:didReceiveRemoteNotification:fetchCompletionHandler:");
+    //FORGROUND => NOTIF + DATA                             [ios 9]
+    //BACKGROUND.content_available=1 => NOTIF + DATA        [ios 9]
+    //BACKGROUND.TAPPED => NOTIF + DATA                     [ios 9]
+    //FOREGROUND => DATA                                    [ios 9]
+    
+    // Has user tapped the notification?
+    // UIApplicationStateActive   - app is currently active
+    // UIApplicationStateInactive - app is transitioning from background to foreground (user taps notification)
+    
+    UIApplicationState state = application.applicationState;
+    if (state == UIApplicationStateInactive) {
+        [self notifyOfMessage:userInfo withTapInfo:true];
+    } else {
+        [self notifyOfMessage:userInfo withTapInfo:false];
+    }
+    completionHandler(UIBackgroundFetchResultNewData);
+}
+
+
+
+//////////////////////////////////////////////////////
+/////////////////////////IOS 10///////////////////////
+//////////////////////////////////////////////////////
+
+#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center willPresentNotification:(UNNotification *)notification withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
+    NSLog(@"userNotificationCenter:willPresentNotification:withCompletionHandler:");
+    //FOREGROUND => NOTIF + DATA                                  [ios 10]
+    [self notifyOfMessage:notification.request.content.userInfo withTapInfo:false];
+    
+    completionHandler(UNNotificationPresentationOptionNone);
+}
+
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center didReceiveNotificationResponse:(UNNotificationResponse *)response withCompletionHandler:(void (^)())completionHandler {
+    NSLog(@"userNotificationCenter:didReceiveNotificationResponse:withCompletionHandler:");
+    //BACKGROUND.TAPPED => NOTIF + DATA                         [ios 10]
+    //BACKGROUND.content_available=1.TAPPED => NOTIF + DATA     [ios 10] content_available=1 doesn't do anything, notification is treated like a normal bg notification
+    [self notifyOfMessage:response.notification.request.content.userInfo withTapInfo:true];
+    
+    completionHandler();
+}
+
+- (void)messaging:(nonnull FIRMessaging *)messaging didReceiveMessage:(nonnull FIRMessagingRemoteMessage *)remoteMessage {
+    NSLog(@"messaging:didReceiveMessage:remoteMessage:");
+    //FOREGROUND => DATA                                        [ios 10]
+    //BACKGROUND.content_available=1 => DATA                    [ios 10] content_available=1 doesn't do anything, notification is treated like normal foreground data notification => https://github.com/ostownsville/cordova-plugin-fcm/pull/4#issuecomment-327722950 && https://forums.developer.apple.com/thread/64943
+    [self notifyOfMessage:remoteMessage.appData withTapInfo:false];
+}
+#endif
+
+//////////////////////////////////////////////////////
+////////////////////REFRESH TOKENS////////////////////
+//////////////////////////////////////////////////////
+- (void)messaging:(nonnull FIRMessaging *)messaging didRefreshRegistrationToken:(nonnull NSString *)fcmToken
 {
-    NSLog(@"didReceiveRemoteNotification fetchCompletionHandler");
-    [self application:application didReceiveRemoteNotification:userInfo];
-    completionHandler(UIBackgroundFetchResultNoData);
-}
-// [END receive_message]
-
-// [START refresh_token]
-- (void)tokenRefreshNotification:(NSNotification *)notification
-{
-    // Note that this callback will be fired everytime a new token is generated, including the first
-    // time. So if you need to retrieve the token as soon as it is available this is where that
-    // should be done.
-    NSString *refreshedToken = [[FIRInstanceID instanceID] token];
-    NSLog(@"InstanceID token: %@", refreshedToken);
-
-    // Connect to FCM since connection may have failed when attempted before having a token.
-    [self connectToFcm];
-
-    // TODO: If necessary send token to appliation server.
-}
-// [END refresh_token]
-
-// [START connect_to_fcm]
-- (void)connectToFcm
-{
-    [[FIRMessaging messaging] connectWithCompletion:^(NSError * _Nullable error) {
-        if (error != nil) {
-            NSLog(@"Unable to connect to FCM. %@", error);
-        } else {
-            NSLog(@"Connected to FCM.");
-            [[FIRMessaging messaging] subscribeToTopic:@"/topics/ios"];
-            [[FIRMessaging messaging] subscribeToTopic:@"/topics/all"];
-        }
-    }];
-}
-// [END connect_to_fcm]
-
-
-- (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken{
-    // Figure out what the actual token type is from the provisioning profile
-    NSLog(@"didRegisterForRemoteNotifications deviceToken %@", deviceToken);
-    // [FIRMessaging messaging].APNSToken = deviceToken;
-    [[FIRInstanceID instanceID] setAPNSToken:deviceToken type:FIRInstanceIDAPNSTokenTypeUnknown];
+    NSLog(@"messaging:didRefreshRegistrationToken:");
+    [FCMPlugin.fcmPlugin notifyOfTokenRefresh:fcmToken];
 }
 
 
-- (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
-    NSLog(@"didFailToRegisterForRemoteNotifications error %@", error);   
-}
-
+//////////////////////////////////////////////////////
+////////////////FOREGROUND/BACKGROUND/////////////////
+//////////////////////////////////////////////////////
 
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
-    NSLog(@"app become active");
-    [self connectToFcm];
+    [[FCMQueue sharedFCMQueue] setIsInForground:YES];
+    NSLog(@"applicationDidBecomeActive:");
 }
 
-// [START disconnect_from_fcm]
 - (void)applicationDidEnterBackground:(UIApplication *)application
 {
-    NSLog(@"app entered background");
-    [[FIRMessaging messaging] disconnect];
+    [[FCMQueue sharedFCMQueue] setIsInForground:NO];
+    NSLog(@"applicationDidEnterBackground:");
 }
-// [END disconnect_from_fcm]
 
+//////////////////////////////////////////////////////
+///////////////////MESSAGE HANDLING///////////////////
+//////////////////////////////////////////////////////
+
+-(void) notifyOfMessage: (NSDictionary*) notification withTapInfo:(BOOL)wasTapped {
+    NSData *jsonData = [self packageMessage:notification withTapInfo:wasTapped];
+    [self logMessage:jsonData];
+
+    //Push notification onto a queue...
+    [[FCMQueue sharedFCMQueue] pushNotificationToQueue:jsonData];
+}
+
+-(void) logMessage: (NSData*) messageData {
+    NSLog(@"Notification Data: %@", messageData);
+}
+
+-(NSData*) packageMessage: (NSDictionary*) notification withTapInfo:(BOOL)wasTapped {
+    NSError *error;
+    NSDictionary *notificationMut = [notification mutableCopy];
+    [notificationMut setValue:@(wasTapped) forKey:@"wasTapped"];
+    
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:notificationMut
+                                                       options:0
+                                                         error:&error];
+    return jsonData;
+}
 
 @end
