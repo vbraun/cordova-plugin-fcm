@@ -1,5 +1,6 @@
 package com.gae.scaffolder.plugin;
 
+import android.app.Activity;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -34,21 +35,21 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         // Also if you intend on generating your own notifications as a result of a received FCM
         // message, here is where that should be initiated. See sendNotification method below.
         Log.d(TAG, "==> MyFirebaseMessagingService onMessageReceived");
-		
-		if( remoteMessage.getNotification() != null){
-			Log.d(TAG, "\tNotification Title: " + remoteMessage.getNotification().getTitle());
-			Log.d(TAG, "\tNotification Message: " + remoteMessage.getNotification().getBody());
-		}
-		
-		Map<String, Object> data = new HashMap<String, Object>();
-		data.put("wasTapped", false);
-		for (String key : remoteMessage.getData().keySet()) {
-                Object value = remoteMessage.getData().get(key);
-                Log.d(TAG, "\tKey: " + key + " Value: " + value);
-				data.put(key, value);
+        
+        if( remoteMessage.getNotification() != null){
+            Log.d(TAG, "\tNotification Title: " + remoteMessage.getNotification().getTitle());
+            Log.d(TAG, "\tNotification Message: " + remoteMessage.getNotification().getBody());
         }
-		
-		Log.d(TAG, "\tNotification Data: " + data.toString());
+        
+        Map<String, Object> data = new HashMap<String, Object>();
+        data.put("wasTapped", false);
+        for (String key : remoteMessage.getData().keySet()) {
+            Object value = remoteMessage.getData().get(key);
+            Log.d(TAG, "\tKey: " + key + " Value: " + value);
+            data.put(key, value);
+        }
+        
+        Log.d(TAG, "\tNotification Data: " + data.toString());
         FCMPlugin.sendPushPayload( data );
         //sendNotification(remoteMessage.getNotification().getTitle(), remoteMessage.getNotification().getBody(), remoteMessage.getData());
     }
@@ -62,14 +63,18 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     private void sendNotification(String title, String messageBody, Map<String, Object> data) {
         Intent intent = new Intent(this, FCMPluginActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-		for (String key : data.keySet()) {
-			intent.putExtra(key, data.get(key).toString());
-		}
+        for (String key : data.keySet()) {
+            intent.putExtra(key, data.get(key).toString());
+        }
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0 /* Request code */, intent,
                 PendingIntent.FLAG_ONE_SHOT);
-
+        
+        final int default_notification_channel_id = getResources().getIdentifier(
+            "default_notification_channel_id", "string", getPackageName());
+        final String channelId = getString(default_notification_channel_id);
+        Log.d(TAG, "Notification channel " + Integer.toString(default_notification_channel_id) + " " + channelId);
         Uri defaultSoundUri= RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this)
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, channelId)
                 .setSmallIcon(getApplicationInfo().icon)
                 .setContentTitle(title)
                 .setContentText(messageBody)

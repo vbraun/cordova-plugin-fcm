@@ -50,3 +50,5 @@ npm-debug.log
 
 # Editor temp files
 *~
+\#*\#
+.#*
