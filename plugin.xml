@@ -66,9 +66,9 @@
             </feature>
         </config-file>
 
-        <!-- Disable Firebase method swizzling -->
+        <!-- Enable Firebase method swizzling -->
         <config-file target="*-Info.plist" parent="FirebaseAppDelegateProxyEnabled">
-            <false/>
+            <true/>
         </config-file>
 
         <!-- ENABLE PUSH CAPABILITY -->
