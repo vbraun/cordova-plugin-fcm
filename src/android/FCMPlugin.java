@@ -48,7 +48,7 @@ public class FCMPlugin extends CordovaPlugin {
         try{
             // READY //
             if (action.equals("ready")) {
-                //
+                // no-op on Android
                 callbackContext.success();
             }
             // GET TOKEN //
