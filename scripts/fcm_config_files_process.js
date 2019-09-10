@@ -55,7 +55,7 @@ if (directoryExists("platforms/android")) {
     if (fileExists( path )) {
       try {
         var contents = fs.readFileSync(path).toString();
-        fs.writeFileSync("platforms/android/google-services.json", contents);
+        fs.writeFileSync("platforms/android/app/google-services.json", contents);
 
         var json = JSON.parse(contents);
         var strings = fs.readFileSync("platforms/android/app/src/main/res/values/strings.xml").toString();
