@@ -35,10 +35,7 @@ public class FCMPlugin extends CordovaPlugin {
         super.initialize(cordova, webView);
         gWebView = webView;
         Log.d(TAG, "==> FCMPlugin initialize");
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            this.createNotificationChannels();
-        }
+        this.createNotificationChannels();
     }
      
     public boolean execute(final String action, final JSONArray args, final CallbackContext callbackContext) throws JSONException {
@@ -60,7 +57,8 @@ public class FCMPlugin extends CordovaPlugin {
                             callbackContext.success( FirebaseInstanceId.getInstance().getToken() );
                             Log.d(TAG,"\tToken: "+ token);
                         }catch(Exception e){
-                            Log.d(TAG,"\tError retrieving token");
+                            Log.d(TAG,"\tError retrieving token: " + e.getMessage());
+                            callbackContext.error(e.getMessage());
                         }
                     }
                 });
