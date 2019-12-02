@@ -149,6 +149,10 @@ public class FCMPlugin extends CordovaPlugin {
 
 
     private void createNotificationChannels() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            // Notification channels are an Android O feature
+            return;
+        }
         // Create channel to show notifications.
         final Context ctx = cordova.getActivity().getApplicationContext();
         final String pkgName = ctx.getPackageName();
