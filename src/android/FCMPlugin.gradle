@@ -17,8 +17,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.google.firebase:firebase-core:11.8.0'
-    implementation 'com.google.firebase:firebase-messaging:11.8.0'
+    implementation 'com.google.firebase:firebase-messaging:20.1.5'
 }
 
 // apply plugin: 'com.google.gms.google-services'

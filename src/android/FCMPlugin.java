@@ -1,4 +1,4 @@
-package com.gae.scaffolder.plugin;
+package com.cordova.plugin.firebase;
 
 import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.CallbackContext;
@@ -20,6 +20,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.iid.FirebaseInstanceId;
 
 import java.util.Map;
+
 
 public class FCMPlugin extends CordovaPlugin {
     private static final String TAG = "FCMPlugin";
@@ -51,75 +52,63 @@ public class FCMPlugin extends CordovaPlugin {
             // GET TOKEN //
             else if (action.equals("getToken")) {
                 cordova.getActivity().runOnUiThread(new Runnable() {
-                    public void run() {
-                        try{
-                            String token = FirebaseInstanceId.getInstance().getToken();
-                            callbackContext.success( FirebaseInstanceId.getInstance().getToken() );
-                            Log.d(TAG,"\tToken: "+ token);
-                        }catch(Exception e){
-                            Log.d(TAG,"\tError retrieving token: " + e.getMessage());
-                            callbackContext.error(e.getMessage());
+                        public void run() {
+                            try {
+                                String token = FirebaseInstanceId.getInstance().getToken();
+                                callbackContext.success( FirebaseInstanceId.getInstance().getToken() );
+                                Log.d(TAG,"\tToken: "+ token);
+                            } catch(Exception e) {
+                                Log.d(TAG,"\tError retrieving token: " + e.getMessage());
+                                callbackContext.error(e.getMessage());
+                            }
                         }
-                    }
-                });
+                    });
             }
             // NOTIFICATION CALLBACK REGISTER //
             else if (action.equals("onNotification")) {
                 notificationCallBackReady = true;
                 cordova.getActivity().runOnUiThread(new Runnable() {
-                    public void run() {
-                        if(lastPush != null) FCMPlugin.sendPushPayload( lastPush );
-                        lastPush = null;
-                        callbackContext.success();
-                    }
-                });
+                        public void run() {
+                            if(lastPush != null) FCMPlugin.sendPushPayload( lastPush );
+                            lastPush = null;
+                            callbackContext.success();
+                        }
+                    });
             }
             // UN/SUBSCRIBE TOPICS //
             else if (action.equals("subscribeToTopic")) {
                 cordova.getThreadPool().execute(new Runnable() {
-                    public void run() {
-                        try{
-                            FirebaseMessaging.getInstance().subscribeToTopic( args.getString(0) );
-                            callbackContext.success();
-                        }catch(Exception e){
-                            callbackContext.error(e.getMessage());
+                        public void run() {
+                            try{
+                                FirebaseMessaging.getInstance().subscribeToTopic( args.getString(0) );
+                                callbackContext.success();
+                            } catch(Exception e) {
+                                callbackContext.error(e.getMessage());
+                            }
                         }
-                    }
-                });
+                    });
             }
             else if (action.equals("unsubscribeFromTopic")) {
                 cordova.getThreadPool().execute(new Runnable() {
-                    public void run() {
-                        try{
-                            FirebaseMessaging.getInstance().unsubscribeFromTopic( args.getString(0) );
-                            callbackContext.success();
-                        }catch(Exception e){
-                            callbackContext.error(e.getMessage());
+                        public void run() {
+                            try{
+                                FirebaseMessaging.getInstance().unsubscribeFromTopic( args.getString(0) );
+                                callbackContext.success();
+                            } catch(Exception e) {
+                                callbackContext.error(e.getMessage());
+                            }
                         }
-                    }
-                });
+                    });
             }
-            else{
+            else {
                 callbackContext.error("Method not found");
                 return false;
             }
-        }catch(Exception e){
+        } catch(Exception e) {
             Log.d(TAG, "ERROR: onPluginAction: " + e.getMessage());
             callbackContext.error(e.getMessage());
             return false;
         }
-        
-        //cordova.getThreadPool().execute(new Runnable() {
-        //    public void run() {
-        //      //
-        //    }
-        //});
-        
-        //cordova.getActivity().runOnUiThread(new Runnable() {
-        //    public void run() {
-        //      //
-        //    }
-        //});
         return true;
     }
     
@@ -134,14 +123,14 @@ public class FCMPlugin extends CordovaPlugin {
                 Log.d(TAG, "\tpayload: " + key + " => " + payload.get(key));
             }
             String callBack = "javascript:" + notificationCallBack + "(" + jo.toString() + ")";
-            if(notificationCallBackReady && gWebView != null){
+            if (notificationCallBackReady && gWebView != null) {
                 Log.d(TAG, "\tSent PUSH to view: " + callBack);
                 gWebView.sendJavascript(callBack);
-            }else {
+            } else {
                 Log.d(TAG, "\tView not ready. SAVED NOTIFICATION: " + callBack);
                 lastPush = payload;
             }
-        } catch (Exception e) {
+        } catch(Exception e) {
             Log.d(TAG, "\tERROR sendPushToView. SAVED NOTIFICATION: " + e.getMessage());
             lastPush = payload;
         }
@@ -172,5 +161,4 @@ public class FCMPlugin extends CordovaPlugin {
         );
         notificationManager.createNotificationChannel(channel);
     }
-
 } 

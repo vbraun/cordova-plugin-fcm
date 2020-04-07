@@ -24,27 +24,22 @@
                  android:name="com.google.firebase.messaging.default_notification_channel_id"
                  android:value="@string/default_notification_channel_id"/>
             <activity android:exported="true"
-                      android:name="com.gae.scaffolder.plugin.FCMPluginActivity"
+                      android:name="com.cordova.plugin.firebase.FCMPluginActivity"
                       android:launchMode="singleTop">
                 <intent-filter>   
                     <action android:name="FCM_PLUGIN_ACTIVITY" />  
                     <category android:name="android.intent.category.DEFAULT" />
                 </intent-filter>            
             </activity>
-            <service android:name="com.gae.scaffolder.plugin.MyFirebaseMessagingService">
+            <service android:name="com.cordova.plugin.firebase.CordovaFirebaseMessagingService">
                 <intent-filter>
                     <action android:name="com.google.firebase.MESSAGING_EVENT"/>
-                </intent-filter>
-            </service>
-            <service android:name="com.gae.scaffolder.plugin.MyFirebaseInstanceIDService">
-                <intent-filter>
-                    <action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
                 </intent-filter>
             </service>
         </config-file>
         <config-file target="res/xml/config.xml" parent="/*">
             <feature name="FCMPlugin" >
-                <param name="android-package" value="com.gae.scaffolder.plugin.FCMPlugin"/>
+                <param name="android-package" value="com.cordova.plugin.firebase.FCMPlugin"/>
                 <param name="onload" value="true" />
             </feature>
         </config-file>
@@ -52,10 +47,9 @@
         <framework src="src/android/FCMPlugin.gradle" custom="true" type="gradleReference"/>
 
         <source-file src="src/android/res/values/fcm_notifications.xml" target-dir="res/values" />
-        <source-file src="src/android/FCMPlugin.java" target-dir="src/com/gae/scaffolder/plugin" />
-        <source-file src="src/android/MyFirebaseMessagingService.java" target-dir="src/com/gae/scaffolder/plugin" />
-        <source-file src="src/android/MyFirebaseInstanceIDService.java" target-dir="src/com/gae/scaffolder/plugin" />
-        <source-file src="src/android/FCMPluginActivity.java" target-dir="src/com/gae/scaffolder/plugin" />
+        <source-file src="src/android/FCMPlugin.java" target-dir="src/com/cordova/plugin/firebase" />
+        <source-file src="src/android/CordovaFirebaseMessagingService.java" target-dir="src/com/cordova/plugin/firebase" />
+        <source-file src="src/android/FCMPluginActivity.java" target-dir="src/com/cordova/plugin/firebase" />
     </platform>
 
     <!-- IOS CONFIGURATION -->

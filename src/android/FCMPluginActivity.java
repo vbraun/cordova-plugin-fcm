@@ -1,4 +1,4 @@
-package com.gae.scaffolder.plugin;
+package com.cordova.plugin.firebase;
 
 import android.app.Activity;
 import android.app.NotificationChannel;
@@ -9,7 +9,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.v4.content.LocalBroadcastManager;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.util.Log;
 
 import java.util.Map;
